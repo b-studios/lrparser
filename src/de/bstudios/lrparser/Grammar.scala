@@ -2,7 +2,11 @@ package de.bstudios
 package lrparser
 
 object grammar {
-   
+  
+  
+  /**
+   * The Parsetable
+   */  
   type SententialForm = List[Rule]
   
   class Grammar(val prods: Map[Nonterminal, Set[SententialForm]]) {
@@ -62,6 +66,7 @@ object grammar {
 	  def closure(items: Set[Item]): Set[Item] = {
 	    
 	    val newItems = items.foldLeft(items) {
+	      
 	      (old, item) => item.next match {
 	        case Some(n:Nonterminal) => old ++ grammar.prods(n).map {
 	          (sentence) => Item(n, sentence, 0)
