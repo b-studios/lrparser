@@ -12,6 +12,7 @@ object grammar {
   case class Nonterminal(name: String) extends GrammarSymbol
   case class Terminal(name: String) extends GrammarSymbol
   case object Epsilon extends Terminal("__epsilon__")
+  case object EOS extends Terminal("__eos__")
   
   type SententialForm = List[GrammarSymbol] 
     
@@ -24,7 +25,7 @@ object grammar {
   }
   
   
-  case class Grammar(prods: List[Production]) {
+  case class Grammar(start: Nonterminal, prods: List[Production]) {
     override def toString = 
       "Grammar {%s}".format(prods mkString "\n")
   
@@ -54,7 +55,7 @@ object grammar {
     implicit def string2Terminal(s: String): Terminal = Terminal(s)  
   }
   
-  val example = Grammar(List(
+  val example = Grammar(Nonterminal("E"), List(
     Production(Nonterminal("E"), 
       Nonterminal("E") :: Terminal("+") :: Nonterminal("T") :: Nil ),
       

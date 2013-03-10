@@ -1,7 +1,7 @@
 package de.bstudios.lrparser
 package shiftreduce
 
-import grammar.{Terminal, Nonterminal, Grammar, Production}
+import grammar.{Terminal, Nonterminal, Grammar, Production, EOS}
 import parsetable.ParseTable
 
 sealed abstract class Action
@@ -10,13 +10,6 @@ case class Reduce(production: Int) extends Action
 case object Accept extends Action
 
 trait Parser {
-  
-  /**
-   * End Of Stream
-   * -------------
-   * We need a custom endOfStream Token
-   */
-  def endOfStream: Terminal
   
   /**
    * Parsetable
@@ -39,7 +32,7 @@ trait Parser {
 
       // If the stream does not end with EOS, we will fix that.
       val nextToken = restInput match {
-        case Nil => endOfStream
+        case Nil => EOS
         case first :: _ => first
       }
       
@@ -82,9 +75,7 @@ object demoParser extends Parser {
     
   implicit def symbolState2nonterminalState(pair: (Symbol, State)): (Nonterminal, State) = 
     (Nonterminal(pair._1.name), pair._2)
-  
-  def endOfStream = "$"
-  
+   
   def parseTable = ParseTable(    
       
     /**
@@ -99,17 +90,17 @@ object demoParser extends Parser {
      
       //  |------ id -------|------- + -------|------- * -------|------- ( -------|------- ) -------|------- $ -------|
       Map( "id" -> Shift(5),                                     "(" -> Shift(4)                                       ),  // 0
-      Map(                   "+" -> Shift(6),                                                        "$"  -> Accept    ),  // 1
-      Map(                   "+" -> Reduce(1), "*" -> Shift(7),                    ")" -> Reduce(1), "$"  -> Reduce(1) ),  // 2
-      Map(                   "+" -> Reduce(3), "*" -> Reduce(3),                   ")" -> Reduce(3), "$"  -> Reduce(3) ),  // 3
+      Map(                   "+" -> Shift(6),                                                        EOS  -> Accept    ),  // 1
+      Map(                   "+" -> Reduce(1), "*" -> Shift(7),                    ")" -> Reduce(1), EOS  -> Reduce(1) ),  // 2
+      Map(                   "+" -> Reduce(3), "*" -> Reduce(3),                   ")" -> Reduce(3), EOS  -> Reduce(3) ),  // 3
       Map( "id" -> Shift(5),                                     "(" -> Shift(4)                                       ),  // 4
-      Map(                   "+" -> Reduce(5), "*" -> Reduce(5),                   ")" -> Reduce(5), "$"  -> Reduce(5) ),  // 5
+      Map(                   "+" -> Reduce(5), "*" -> Reduce(5),                   ")" -> Reduce(5), EOS  -> Reduce(5) ),  // 5
       Map( "id" -> Shift(5),                                     "(" -> Shift(4)                                       ),  // 6
       Map( "id" -> Shift(5),                                     "(" -> Shift(4)                                       ),  // 7
       Map(                   "+" -> Shift(6),                                      ")" -> Shift(11)                    ),  // 8
-      Map(                   "+" -> Reduce(0), "*" -> Shift(7),                    ")" -> Reduce(0), "$"  -> Reduce(0) ),  // 9
-      Map(                   "+" -> Reduce(2), "*" -> Reduce(2),                   ")" -> Reduce(2), "$"  -> Reduce(2) ),  // 10
-      Map(                   "+" -> Reduce(4), "*" -> Reduce(4),                   ")" -> Reduce(4), "$"  -> Reduce(4) )   // 11
+      Map(                   "+" -> Reduce(0), "*" -> Shift(7),                    ")" -> Reduce(0), EOS  -> Reduce(0) ),  // 9
+      Map(                   "+" -> Reduce(2), "*" -> Reduce(2),                   ")" -> Reduce(2), EOS  -> Reduce(2) ),  // 10
+      Map(                   "+" -> Reduce(4), "*" -> Reduce(4),                   ")" -> Reduce(4), EOS  -> Reduce(4) )   // 11
     ),
     
     /**
@@ -131,5 +122,5 @@ object demoParser extends Parser {
     )
   ) 
   
-  def test = parse(List("id", "+", "id", "$"))
+  def test = parse(List("id", "+", "id", EOS))
 }

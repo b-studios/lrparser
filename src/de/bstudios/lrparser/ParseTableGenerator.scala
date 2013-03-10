@@ -1,7 +1,7 @@
 package de.bstudios.lrparser
 package parsetable
 
-import grammar.{SententialForm, Nonterminal, GrammarSymbol, Grammar, Terminal, Production, Epsilon}
+import grammar.{SententialForm, Nonterminal, GrammarSymbol, Grammar, Terminal, Production, Epsilon, EOS}
 import shiftreduce.{Action, Shift, Reduce, Accept}
 
 
@@ -52,11 +52,13 @@ trait ParseTableGenerator {
     
     import scala.collection.mutable
     
+    /**
+     * FIRST(A)
+     */    
     // initialize every nonterminal with an empty set
     val firstSets = Map(grammar.nonterminals.toList.map(
       (nonterm) => (nonterm, mutable.Set[Terminal]()) 
-    ):_*)
-    
+    ):_*)    
     
     def buildFirstSets(): Unit = {
       
@@ -101,16 +103,82 @@ trait ParseTableGenerator {
         buildFirstSets()
     } 
     
-    def first(symbol: GrammarSymbol) = symbol match {
-      case t:Terminal => Set(t)
-      case n:Nonterminal => grammar.productionsFor(n)      
+    // Immediately build them
+    buildFirstSets()
+    
+    def first(symbols: List[GrammarSymbol]): Set[Terminal] = 
+      // caution: we use 2 aggregators here: (allEpsilon, collectedTerminals)
+      symbols.foldLeft[(Boolean, Set[Terminal])]( (true, Set.empty) ) { (old, sym) => (old, sym) match {
+        // there has been a previous set without epsilon
+        case ((false, _), _) => old
+        case ((true, set), t:Terminal) => (false, set + t)
+        case ((true, set), n:Nonterminal) => (firstSets(n) contains Epsilon, set ++ (firstSets(n) - Epsilon))
+      }
+    // In the end: check for epsilon
+    } match {
+      case (true, set)  => set + Epsilon
+      case (false, set) => set
     }
     
-    buildFirstSets()
+    /**
+     * FOLLOW(A)
+     */    
+    // initialize every nonterminal with an empty set
+    val followSets = Map(grammar.nonterminals.toList.map(
+      (nonterm) => (nonterm, mutable.Set[Terminal]()) 
+    ):_*)    
+    
+    // put EOS in Startrule
+    followSets(grammar.start) += EOS
+    
+    def buildFollowSets(): Unit = {
+      
+      var modified = false
+      
+      def trackingChanges(key: Nonterminal)(changes: (mutable.Set[Terminal]) => Unit) {
+        val set = followSets(key)
+        val sizeBefore = set.size
+        changes(set)
+        modified = modified || (set.size != sizeBefore)
+      }      
+      
+      grammar.prods.foreach {      
+        
+        // now we go from right to left and check if all right hand side rules contain epsilon
+        case Production(head, body) => {
+        
+          def followSetOfString(restString: List[GrammarSymbol]): Unit = restString match {
+            case (n:Nonterminal) :: rest => {
+              val firstOfRest = first(rest)            
+              trackingChanges(n) { _ ++= (firstOfRest - Epsilon) }
+                            
+              if ( (first(rest) contains Epsilon) || rest == Nil)
+                trackingChanges(n) { _ ++= followSets(head) }
+              
+              // continue on rest
+              followSetOfString(rest)
+            }
+            case (t:Terminal) :: rest => followSetOfString(rest)
+            case _ =>
+          }
+          followSetOfString(body)
+        }
+      }
+      
+      if (modified)
+        buildFollowSets()            
+    }
+    // immediately build follow sets
+    buildFollowSets()
+    
+    // debug output
     println(firstSets)
     
-    ParseTable(Grammar(List()), List(), List())
+    println("FollowSets")
+    println(followSets)
     
+    // dummy output
+    ParseTable(Grammar(Nonterminal("Start"), List()), List(), List())    
   }
     
   
