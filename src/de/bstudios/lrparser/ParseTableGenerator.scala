@@ -35,22 +35,54 @@ case class ParseTable(
 
 trait ParseTableGenerator {
   
-  case class Item(production: SententialForm, state: Int) {
+  case class State(items: Set[Item])
+  
+  case class Item(production: Production, position: Int) {
     
       /**
        * This item can no longer be incremented
        */
-      def reducable = state == production.size
+      def reducable = position == production.size
       
       /**
        * The next grammar symbol following the dot
        */
-      def next = if(production.size == state) None else Some(production(state))	    
+      def next = if(production.size == position) None else Some(production.body(position))	    
   }
   
   def generate(grammar: Grammar): ParseTable = {
     
     import scala.collection.mutable
+    
+    val states = mutable.LinkedList[State]()
+    
+    /**
+     * CLOSURE(As)
+     */
+    def closure(items: Set[Item]): Set[Item] = {
+     
+      val newItems = items.foldLeft(items)( (old, item) => item.next match {
+        case Some(n:Nonterminal) => old ++ grammar.productionsFor(n).map {
+          (prod) => Item(prod, 0)
+        }
+        case _ => old
+      })
+      
+      if (newItems == items)
+        items
+      else
+        closure(newItems)
+    }
+    
+    /**
+     * GOTO(As, T)
+     */
+    def goto(items: Set[Item], symbol: GrammarSymbol) = items.filter( (item) => item.next match {
+      case Some(rule) => rule == symbol
+      case _ => false
+    }).map { (item) =>
+      Item(item.production, item.position + 1)
+    }
     
     /**
      * FIRST(A)
