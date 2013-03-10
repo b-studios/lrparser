@@ -1,12 +1,109 @@
-package de.bstudios
-package lrparser
+package de.bstudios.lrparser
 
 object grammar {
-  
-  
+    
   /**
-   * The Parsetable
-   */  
+   * GrammarSymbols that the body of a production might contain
+   */
+  sealed abstract class GrammarSymbol {
+    def name: String
+    override def toString = name
+  }
+  case class Nonterminal(name: String) extends GrammarSymbol
+  case class Terminal(name: String) extends GrammarSymbol
+  case object Epsilon extends Terminal("__epsilon__")
+  
+  type SententialForm = List[GrammarSymbol] 
+    
+  /**
+   * Later on add semantic actions here
+   */
+  case class Production(head: Nonterminal, body: List[GrammarSymbol]) {
+    override def toString = "%s → %s" format (head, body mkString " ")
+    def size = body.size
+  }
+  
+  
+  case class Grammar(prods: List[Production]) {
+    override def toString = 
+      "Grammar {%s}".format(prods mkString "\n")
+  
+    // TODO analyse where this is used and maybe outfactor it.
+    def grammarSymbols = prods.foldLeft[Set[GrammarSymbol]](Set.empty) { 
+      (old, prod) =>
+      
+      // collect:
+      // 1. The nonterminal head 
+      // 2. all symbols in the production body
+      old + prod.head ++ prod.body.toSet
+    }
+    
+    def nonterminals = grammarSymbols.foldLeft[Set[Nonterminal]](Set.empty) {
+      (old, sym) => sym match {
+        case n:Nonterminal => old + n
+        case _ => old
+      }
+    }
+  
+    def productionsFor(head: Nonterminal): List[Production] = 
+      prods.filter( _.head == head )
+  }
+  
+  object implicits {
+    implicit def sym2Nonterminal(s: Symbol): Nonterminal = Nonterminal(s.name)
+    implicit def string2Terminal(s: String): Terminal = Terminal(s)  
+  }
+  
+  val example = Grammar(List(
+    Production(Nonterminal("E"), 
+      Nonterminal("E") :: Terminal("+") :: Nonterminal("T") :: Nil ),
+      
+    Production(Nonterminal("E"), 
+      Nonterminal("T") :: Nil ),
+      
+    Production(Nonterminal("T"),
+      Nonterminal("T") :: Terminal("*") :: Nonterminal("F") :: Nil ),
+      
+    Production(Nonterminal("T"),
+      Nonterminal("F") :: Nil ),
+      
+    Production(Nonterminal("F"),
+      Terminal("(") :: Nonterminal("E") :: Terminal(")") :: Nil),
+      
+    Production(Nonterminal("F"),
+      Terminal("id") :: Nil)
+  ))  
+}
+ 
+  
+  /*
+object grammar {
+   val demoGrammar = Grammar(List(
+   Production( Nonterminal("E"), 
+        Nonterminal("E") :: Terminal("+") :: Nonterminal("T") :: Nil ),
+        
+    Production( Nonterminal("E"), 
+        Nonterminal("T") :: Nil ),
+        
+    Production( Nonterminal("T"),
+        Nonterminal("T") :: Terminal("*") :: Nonterminal("F") :: Nil ),
+        
+    Production( Nonterminal("T"),
+        Nonterminal("F") :: Nil ),
+        
+    Production( Nonterminal("F"),
+        Terminal("(") :: Nonterminal("E") :: Terminal(")") :: Nil),
+        
+        Production( Nonterminal("F"),
+        Terminal("id") :: Nil)
+  ))
+}*/
+  
+
+/*
+object grammar {
+  
+
   type SententialForm = List[Rule]
   
   class Grammar(val prods: Map[Nonterminal, Set[SententialForm]]) {
@@ -30,9 +127,9 @@ object grammar {
   case class Terminal(name: String) extends Rule
   
   val g = Grammar (
-    /*Nonterminal('Start) -> Set(
-      Nonterminal('E) :: List()
-    ),*/
+    // Nonterminal('Start) -> Set(
+    //   Nonterminal('E) :: List()
+    // ),
     Nonterminal('E) -> Set(
       Nonterminal('E) :: Terminal("+") :: Nonterminal('T) :: List(),
       Nonterminal('T) :: List()
@@ -51,9 +148,8 @@ object grammar {
   
   class LRParser(grammar: Grammar, start: Nonterminal) {
 	  
-    /**
-     * Here `A → · B C D` is represented as Item(A, List('B, 'C, 'D), 0)
-     */
+    
+    //Here `A → · B C D` is represented as Item(A, List('B, 'C, 'D), 0)
     case class Item(nonterminal: Nonterminal, production: SententialForm, state: Int) {
 	    def reducable = state == production.size
 	    def next = if(production.size == state) None else Some(production(state))
@@ -176,4 +272,4 @@ object grammar {
 	  
   }
 }
-
+*/
