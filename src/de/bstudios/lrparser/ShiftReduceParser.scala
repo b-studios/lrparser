@@ -11,16 +11,9 @@ case object Accept extends Action
 
 trait Parser {
   
-  /**
-   * Parsetable
-   * ----------
-   * Every parser needs to be fed with a previously generated parse table
-   */
-  def parseTable: ParseTable
-  
   type State = Int
   
-  def parse(input: List[Terminal]): Boolean = {
+  def parse(parseTable: ParseTable)(input: List[Terminal]): Boolean = {
     
     var restInput = input
     val states = scala.collection.mutable.Stack[State](parseTable.startState)    
@@ -75,7 +68,7 @@ object demoParser extends Parser {
   implicit def symbolState2nonterminalState(pair: (Symbol, State)): (Nonterminal, State) = 
     (Nonterminal(pair._1.name), pair._2)
    
-  def parseTable = ParseTable(    
+  val parseTable = ParseTable(    
     
     /**
      * Start State
@@ -126,7 +119,7 @@ object demoParser extends Parser {
     )
   ) 
   
-  def test = parse(List("id", "+", "id", EOS))
+  def test = parse(parseTable)(List("id", "+", "id", EOS))
 }
 
 object demoParser2 extends Parser {
@@ -136,19 +129,9 @@ object demoParser2 extends Parser {
   
   object generator extends ParseTableGenerator {}
   
-  def parseTable = generator.generate(grammar.example)
+  val parseTable = generator.generate(grammar.example)
   
-  // Print the action table
-  println("Action Table")
-  parseTable.actions.foreach { (row) =>
-    println(row mkString " ")
-  }
-    
-  // print the goto table
-  println("Goto Table")
-  parseTable.gotos.foreach { (row) =>
-    println(row mkString " ")
-  }
+  println(parseTable)
   
-  def test = parse(List("id", "+", "id", EOS))
+  def test = parse(parseTable)(List("id", "+", "id", EOS))
 }

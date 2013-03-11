@@ -38,7 +38,107 @@ case class ParseTable(
      * After a reduction step the goto table tells us where to continue, depending on the topmost state on the stack
      */
     gotos: List[Map[Nonterminal, Int]]
-)
+) {
+  
+  /**
+   * Outputs a table like:
+   *      | id |
+   *  ----+----+ 
+   *    0 | s3 |
+   *  
+   * Every column should have a size of terminal.name.lenth but at least 3 characters
+   * 
+   */
+  private def actionTableToString = {
+    
+    
+    // they always have to be in the same order
+    val terminals = (grammar.terminals + EOS).toList
+    
+    var table = "    |"
+      
+    // print header
+    table += (for {
+      terminal <- terminals
+      val colwidth = terminals.size.max(3)
+    } yield (" %" + colwidth.toString + "s ").format(terminal.name)) mkString "|"
+    
+    
+    val separator = "\n----+" + (for {
+      terminal <- terminals
+      val colwidth = terminals.size.max(3)
+    } yield ("-" * (colwidth + 2))).mkString("+") + "\n"
+    
+    
+    table += (for ((state, i) <- actions.zipWithIndex) yield {
+      
+      // separator and first column followed by all other columns
+       separator + ("%3d |".format(i)) + (for (terminal <- terminals; val colwidth = terminals.size.max(3)) yield {
+        if (!(state contains terminal)) {
+          " " * (colwidth + 2)
+        } else (" %" + colwidth.toString + "s ").format(state(terminal) match {
+          case Accept => "acc"
+          case Shift(s) => "s%2d".format(s)
+          case Reduce(s) => "r%2d".format(s)
+        }) 
+      }).mkString("|")
+    }).mkString("")  
+    
+    table
+  }
+  
+  private def gotoTableToString = {
+    
+    val nonterminals = grammar.nonterminals.toList
+    
+    var table = "    |"
+      
+    // print header
+    table += (for {
+      nonterminal <- nonterminals
+      val colwidth = nonterminal.name.size.max(3)
+    } yield (" %" + colwidth.toString + "s ").format(nonterminal.name)) mkString "|"
+    
+    
+    val separator = "\n----+" + (for {
+      nonterminal <- nonterminals
+      val colwidth = nonterminal.name.size.max(3)
+    } yield ("-" * (colwidth + 2))).mkString("+") + "\n"
+    
+    
+    table += (for ((goto, i) <- gotos.zipWithIndex) yield {
+      
+      // separator and first column followed by all other columns
+       separator + ("%3d |".format(i)) + (for (nonterminal <- nonterminals; val colwidth = nonterminal.name.size.max(3)) yield {
+        if (!(goto contains nonterminal)) {
+          " " * (colwidth + 2)
+        } else (" %" + colwidth.toString + "d ").format(goto(nonterminal))
+      }).mkString("|")
+    }).mkString("")  
+    
+    table
+  }
+  
+  override def toString = """
+ParseTable
+==========
+StartState: %s
+
+Grammar
+-------
+%s
+    
+Action Table
+------------
+%s
+    
+Goto Table
+----------
+%s
+""".format(startState, grammar, actionTableToString, gotoTableToString)
+}
+
+
 
 
 trait ParseTableGenerator {
@@ -246,21 +346,21 @@ trait ParseTableGenerator {
     buildFollowSets()
     
     // debug output
-    println("FirstSets")
-    println(firstSets)
+    // println("FirstSets")
+    // println(firstSets)
     
-    println("FollowSets")
-    println(followSets)
+    // println("FollowSets")
+    // println(followSets)
     
     val startProduction = Production(Nonterminal("__START__"), List(grammar.start))
     val startState = State(Set(Item(startProduction, 0) ))
     
     val states = canonicalSetOfLR0(Set(startState)).toList
     
-    println("Canonical Set of LR0")
-    for(state <- states) {
-      println(state + "\n")
-    }
+    // println("Canonical Set of LR0")
+    // for(state <- states) {
+    //   println(state + "\n")
+    // }
     
     
     
@@ -293,7 +393,7 @@ trait ParseTableGenerator {
       
         
       // It's the start rule - we're done
-      case None if prod != startProduction => actionTable(stateIndex(state)) put (EOS, Accept)
+      case None if prod == startProduction => actionTable(stateIndex(state)) put (EOS, Accept)
           
       // Nothing to do here
       case _ =>
