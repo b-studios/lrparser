@@ -6,6 +6,14 @@ import shiftreduce.{Action, Shift, Reduce, Accept}
 
 
 case class ParseTable(
+    
+    /**
+     * Start State
+     * -----------
+     * The index of the state to start parsing with
+     */
+    startState: Int,
+    
     /**
      * Production Table
      * ----------------
@@ -62,9 +70,7 @@ trait ParseTableGenerator {
   def generate(grammar: Grammar): ParseTable = {
     
     import scala.collection.mutable
-    
-    val states = mutable.LinkedList[State]()
-    
+        
     /**
      * CLOSURE(As)
      */
@@ -94,6 +100,14 @@ trait ParseTableGenerator {
     }
     
     
+    def gotoState(prevState: State, symbol: GrammarSymbol): Option[State] = {      
+      val nextItems = goto(closure(prevState.items), symbol)
+      if (nextItems.isEmpty)
+        None
+      else
+        Some(State(nextItems))  
+    }
+      
     /**
      * LR0AUTOMATON
      */
@@ -104,7 +118,7 @@ trait ParseTableGenerator {
 	      symbol <- grammar.grammarSymbols
 	      
 	      val trans = goto(closure(state.items), symbol)
-	      if trans != Set.empty
+	      if !trans.isEmpty
 	    } yield State(trans))
 	    
 	    if (newStates == states)
@@ -162,8 +176,7 @@ trait ParseTableGenerator {
       
       if (modified)
         buildFirstSets()
-    } 
-    
+    }    
     // Immediately build them
     buildFirstSets()
     
@@ -233,6 +246,7 @@ trait ParseTableGenerator {
     buildFollowSets()
     
     // debug output
+    println("FirstSets")
     println(firstSets)
     
     println("FollowSets")
@@ -240,74 +254,79 @@ trait ParseTableGenerator {
     
     val startProduction = Production(Nonterminal("__START__"), List(grammar.start))
     val startState = State(Set(Item(startProduction, 0) ))
+    
+    val states = canonicalSetOfLR0(Set(startState)).toList
+    
     println("Canonical Set of LR0")
-    canonicalSetOfLR0(Set(startState)).foreach { (state) =>
+    for(state <- states) {
       println(state + "\n")
     }
     
-    // dummy output
-    ParseTable(Grammar(Nonterminal("Start"), List()), List(), List())    
-  }
     
-  
-  
-  
-  
-   
-  /*
-  def goto(what: GrammarSymbol): Option[Item] = next match {
-    case Some(rule) if rule == what => Some(Item(production, state + 1)) 
-    case _ => None
-  }*/
-  
-  
-  /*
-  case class ItemSet(items: Set[Item]) {
-    def closure(grammar: Grammar): Set[Item] = {
+    
+    /**
+     * Action Table
+     */
+    // The action table is accessed by index
+    val actionTable = states.map( (state) => mutable.Map[Terminal, Action]() )
+    
+    def stateIndex(state: State) =
+      states indexOf state
+    
+    def productionIndex(prod: Production) =
+      grammar.prods indexOf prod
+    
+    for {
+      state <- states
+      item  <- closure(state.items)
+      val prod = item.production
+    } item.next match {
+      case Some(t:Terminal) => {
+        val nextState = State(goto(closure(state.items), t))        
+        actionTable(stateIndex(state)) put (t, Shift(stateIndex(nextState)))
+      }
+        
+      // It's reducable
+      case None if prod != startProduction => for(follower <- followSets(prod.head)) {
+        actionTable(stateIndex(state)) put (follower, Reduce(productionIndex(prod)))
+      }
       
+        
+      // It's the start rule - we're done
+      case None if prod != startProduction => actionTable(stateIndex(state)) put (EOS, Accept)
+          
+      // Nothing to do here
+      case _ =>
     }
-  }
-  
-  def closure(itemset: Set[Item], grammar: Grammar): Set[Item] = {
-
-    val newItems = items.foldLeft(items) {
-	      
-	      (old, item) => item.next match {
-	        case Some(head:Nonterminal) => old ++ grammar.productionsFor(head).map {
-	          (prod) => Item(n, prod.body, 0)
-	        }
-	        case _ => old
-	      }
-	    }
-	    
-	    if (newItems == items)
-	      items
-	    else
-	      closure(newItems, grammar)
-	  }
-	  
-	  def goto(items: Set[Item], what: GrammarSymbol, grammar: Grammar) = 
-	    closure(
-	        items.map { (item) => item.goto(what) }.foldRight[Set[Item]](Set.empty) { 
-	          (item, set) => item match {
-	            case Some(i) => set + i
-	            case _ => set
-	          }
-	        })
     
-	  def canonicalSetOfLR(itemSets: Set[Set[Item]], grammar: Grammar): Set[Set[Item]] = {
-	    
-	    val newItemSets = itemSets ++ (for {
-	      set <- itemSets
-	      sym <- grammar.grammarSymbols
-	      val trans = goto(set, sym)
-	      if trans != Set.empty
-	    } yield trans)
-	    
-	    if (newItemSets == itemSets)
-	      itemSets
-	    else
-	      canonicalSetOfLR(newItemSets)   
-    }*/
-  
+    /**
+     * Goto Table
+     */
+    // Like the action table, the goto table is accessed by index
+    val gotoTable = states.map( (state) => mutable.Map[Nonterminal, Int]() )
+    
+    /**
+     * For each nonterminal, check whether goto(state1, nonterminal) = state2
+     * Create entry gotoTable[1, nonterminal] = 2
+     * 
+     * Both: `Shift` and `Goto` could be created on the fly inside of the LR0 Automaton creation process
+     */
+    for {
+      state       <- states
+      nonterminal <- grammar.nonterminals
+      val nextSet = goto(closure(state.items), nonterminal)
+      if !nextSet.isEmpty
+      val nextStateIndex = stateIndex(State(nextSet))
+    } gotoTable(stateIndex(state)) put (nonterminal, nextStateIndex)
+    
+   
+    
+    // convert mutable Maps to immutable ones
+    ParseTable(
+        stateIndex(startState),
+        grammar,
+        actionTable.map { Map() ++ _ },
+        gotoTable.map { Map () ++ _}
+    )    
+  }  
 }

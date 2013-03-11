@@ -19,12 +19,11 @@ trait Parser {
   def parseTable: ParseTable
   
   type State = Int
-  private val startState: State = 0
   
   def parse(input: List[Terminal]): Boolean = {
     
     var restInput = input
-    val states = scala.collection.mutable.Stack[State](startState)    
+    val states = scala.collection.mutable.Stack[State](parseTable.startState)    
     
     while(true) {
       
@@ -77,7 +76,12 @@ object demoParser extends Parser {
     (Nonterminal(pair._1.name), pair._2)
    
   def parseTable = ParseTable(    
-      
+    
+    /**
+     * Start State
+     */
+    0,
+    
     /**
      * The Grammar
      */
@@ -121,6 +125,30 @@ object demoParser extends Parser {
       Map(                            )  // 11
     )
   ) 
+  
+  def test = parse(List("id", "+", "id", EOS))
+}
+
+object demoParser2 extends Parser {
+  
+  import grammar.implicits._
+  import parsetable.ParseTableGenerator
+  
+  object generator extends ParseTableGenerator {}
+  
+  def parseTable = generator.generate(grammar.example)
+  
+  // Print the action table
+  println("Action Table")
+  parseTable.actions.foreach { (row) =>
+    println(row mkString " ")
+  }
+    
+  // print the goto table
+  println("Goto Table")
+  parseTable.gotos.foreach { (row) =>
+    println(row mkString " ")
+  }
   
   def test = parse(List("id", "+", "id", EOS))
 }
