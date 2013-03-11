@@ -35,7 +35,9 @@ case class ParseTable(
 
 trait ParseTableGenerator {
   
-  case class State(items: Set[Item])
+  case class State(items: Set[Item]) {
+    override def toString = "State (%s) %s".format(items.size, items mkString ", ")
+  }
   
   case class Item(production: Production, position: Int) {
     
@@ -47,7 +49,14 @@ trait ParseTableGenerator {
       /**
        * The next grammar symbol following the dot
        */
-      def next = if(production.size == position) None else Some(production.body(position))	    
+      def next = if(production.size == position) None else Some(production.body(position))	  
+      
+      override def toString = 
+        "%s → %s · %s".format(
+            production.head, 
+            production.body.slice(0, position) mkString " ", 
+            production.body.slice(position, production.body.size) mkString " "
+        )
   }
   
   def generate(grammar: Grammar): ParseTable = {
@@ -82,6 +91,26 @@ trait ParseTableGenerator {
       case _ => false
     }).map { (item) =>
       Item(item.production, item.position + 1)
+    }
+    
+    
+    /**
+     * LR0AUTOMATON
+     */
+    def canonicalSetOfLR0(states: Set[State]): Set[State] = {
+	    
+	    val newStates = states ++ (for {
+	      state <- states
+	      symbol <- grammar.grammarSymbols
+	      
+	      val trans = goto(closure(state.items), symbol)
+	      if trans != Set.empty
+	    } yield State(trans))
+	    
+	    if (newStates == states)
+	      states
+	    else
+	      canonicalSetOfLR0(newStates)   
     }
     
     /**
@@ -208,6 +237,13 @@ trait ParseTableGenerator {
     
     println("FollowSets")
     println(followSets)
+    
+    val startProduction = Production(Nonterminal("__START__"), List(grammar.start))
+    val startState = State(Set(Item(startProduction, 0) ))
+    println("Canonical Set of LR0")
+    canonicalSetOfLR0(Set(startState)).foreach { (state) =>
+      println(state + "\n")
+    }
     
     // dummy output
     ParseTable(Grammar(Nonterminal("Start"), List()), List(), List())    

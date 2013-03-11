@@ -158,34 +158,7 @@ object grammar {
 	      case Some(rule) if rule == what => Some(Item(nonterminal, production, state + 1)) 
 	      case _ => None
 	    }
-	  }  
-       
-	  def closure(items: Set[Item]): Set[Item] = {
-	    
-	    val newItems = items.foldLeft(items) {
-	      
-	      (old, item) => item.next match {
-	        case Some(n:Nonterminal) => old ++ grammar.prods(n).map {
-	          (sentence) => Item(n, sentence, 0)
-	        }
-	        case _ => old
-	      }
-	    }
-	    
-	    if (newItems == items)
-	      items
-	    else
-	      closure(newItems)
-	  }
 	  
-	  def goto(items: Set[Item], what: Rule) = 
-	    closure(
-	        items.map { (item) => item.goto(what) }.foldRight[Set[Item]](Set.empty) { 
-	          (item, set) => item match {
-	            case Some(i) => set + i
-	            case _ => set
-	          }
-	        })
     
 	  def canonicalSetOfLR(itemSets: Set[Set[Item]]): Set[Set[Item]] = {
 	    
