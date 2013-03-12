@@ -244,4 +244,48 @@ object grammar {
     Production(Nonterminal("E"),
       Terminal("a") :: Nil)
   ))
+  
+  /**
+   * Example 4.48 in Draggonbook
+   * That grammar is LR(1) but not SLR / LR(0)
+   */
+  val example5 = Grammar(Nonterminal("S"), List(
+    Production(Nonterminal("S"),
+      Nonterminal("L") :: Terminal("=") :: Nonterminal("R") :: Nil),
+      
+    Production(Nonterminal("S"),
+      Nonterminal("R") :: Nil),
+      
+    Production(Nonterminal("L"),
+      Terminal("*") :: Nonterminal("R") :: Nil),
+    
+    Production(Nonterminal("L"),
+      Terminal("id") :: Nil),
+      
+    Production(Nonterminal("R"),
+      Nonterminal("L") :: Nil)
+  ))
+  
+  /**
+   * Example 4.58 in Dragonbook
+   */
+  val example6 = Grammar(Nonterminal("S"), List(
+    Production(Nonterminal("S"),
+      Terminal("a") :: Nonterminal("A") :: Terminal("d") :: Nil),
+      
+    Production(Nonterminal("S"),
+      Terminal("b") :: Nonterminal("B") :: Terminal("d") :: Nil),
+      
+    Production(Nonterminal("S"),
+      Terminal("a") :: Nonterminal("B") :: Terminal("e") :: Nil),
+      
+    Production(Nonterminal("S"),
+      Terminal("b") :: Nonterminal("A") :: Terminal("e") :: Nil),
+      
+    Production(Nonterminal("A"),
+      Terminal("c") :: Nil),
+      
+    Production(Nonterminal("B"),
+      Terminal("c") :: Nil)
+  ))
 }

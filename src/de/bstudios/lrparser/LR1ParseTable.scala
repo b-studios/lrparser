@@ -1,6 +1,7 @@
 package de.bstudios.lrparser
 package parsetable
 
+import scala.collection.mutable
 import grammar.{SententialForm, Nonterminal, GrammarSymbol, Grammar, Terminal, Production, Epsilon, EOS}
 import shiftreduce.{Action, Shift, Reduce, Accept}
 
@@ -72,4 +73,44 @@ trait LR1ParseTableGenerator extends ParseTableGenerator {
     }
  
   def newItem(prod: Production): Item = LR1Item(prod, 0, EOS)
+  
+  
+  /**
+   * There is just one little change in the action table!!
+   */
+  override def buildActionTable(states: List[State], startProd: Production)(implicit grammar: Grammar) = {
+    
+    // The action table is accessed by index
+    val actionTable = states.map( (state) => mutable.Map[Terminal, Action]() )
+    
+    def stateIndex(state: State) =
+      states indexOf state
+    
+    def productionIndex(prod: Production) =
+      grammar.prods indexOf prod
+    
+    for {
+      state <- states
+      item  <- closure(state.items)
+      val prod = item.production
+    } item.next match {
+      case Some(t:Terminal) => {
+        val nextState = State(nextItemSet(state, t))       
+        actionTable(stateIndex(state)) put (t, Shift(stateIndex(nextState)))
+      }
+        
+      // HERE IS THE CHANGE COMPARED TO LR0
+      case None if prod != startProd => actionTable(stateIndex(state)) put (item.lookahead, Reduce(productionIndex(prod)))
+      
+        
+      // It's the start rule - we're done
+      case None if prod == startProd => actionTable(stateIndex(state)) put (EOS, Accept)
+          
+      // Nothing to do here
+      case _ => 
+    }
+    
+    // make it immutable again
+    actionTable.map { Map() ++ _ }
+  }
 }

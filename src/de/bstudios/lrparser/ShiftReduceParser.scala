@@ -156,11 +156,11 @@ object demoParser4 extends Parser {
   
   object generator extends LR0ParseTableGenerator {}
   
-  val parseTable = generator.generate(grammar.example3)
+  val parseTable = generator.generate(grammar.example5)
   
   println(parseTable)
   
-  def test = parse(parseTable)(List("a","a", EOS))
+  def test = parse(parseTable)(List("*", "*", "id", "=", "id", EOS))
 }
 
 object demoParser5 extends Parser {
@@ -169,9 +169,35 @@ object demoParser5 extends Parser {
   
   object generator extends LR1ParseTableGenerator {}
   
-  val parseTable = generator.generate(grammar.example3)
+  val parseTable = generator.generate(grammar.example5)
   
   println(parseTable)
   
-  def test = parse(parseTable)(List("a", "a", EOS))
+  def test = parse(parseTable)(List("*", "*", "id", "=", "id", EOS))
+}
+
+object demoParser6 extends Parser {
+  import grammar.implicits._
+  import parsetable.LR0ParseTableGenerator
+  
+  object generator extends LR0ParseTableGenerator {}
+  
+  val parseTable = generator.generate(grammar.example6)
+  
+  println(parseTable)
+  
+  def test = parse(parseTable)(List("a", "c", "d", EOS))
+}
+
+object demoParser7 extends Parser {
+  import grammar.implicits._
+  import parsetable.LR1ParseTableGenerator
+  
+  object generator extends LR1ParseTableGenerator {}
+  
+  val parseTable = generator.generate(grammar.example6)
+  
+  println(parseTable)
+  
+  def test = parse(parseTable)(List("a", "c", "d", EOS))
 }
